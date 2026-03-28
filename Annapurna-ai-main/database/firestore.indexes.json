@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "donations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "urgency", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
