@@ -2,10 +2,20 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
 from datetime import datetime, timezone
+import os
+import json
+from openai import OpenAI
 
-app = FastAPI(title="Annapurna AI Service", version="1.0.0")
+app = FastAPI(title="Annapurna AI Service", version="2.0.0")
 
+# =========================
+# 🔑 OPENAI SETUP
+# =========================
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# =========================
+# 📦 MODELS
+# =========================
 class TrustInput(BaseModel):
     preparedAt: Optional[str] = None
     category: Optional[Literal["cooked", "raw", "packaged", "dairy"]] = "cooked"
@@ -16,9 +26,11 @@ class TrustInput(BaseModel):
 
 class QualityInput(BaseModel):
     imageData: Optional[str] = ""
-    imageFreshness: Optional[float] = Field(default=70, ge=0, le=100)
 
 
+# =========================
+# 🧮 HELPERS
+# =========================
 def clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
 
@@ -36,11 +48,17 @@ def hours_since(iso_time: Optional[str]) -> float:
         return 6.0
 
 
+# =========================
+# ❤️ HEALTH
+# =========================
 @app.get("/health")
 def health():
     return {"ok": True, "service": "annapurna-ai-fastapi"}
 
 
+# =========================
+# 🧠 TRUST SCORE
+# =========================
 @app.post("/trust-score")
 def trust_score(payload: TrustInput):
     category_risk = {"cooked": 1.0, "dairy": 0.85, "raw": 0.75, "packaged": 0.65}
@@ -58,18 +76,85 @@ def trust_score(payload: TrustInput):
         + temp_score * 0.17
         + image_fresh * 0.15
     )
+
     score = int(clamp(round(score_raw), 0, 100))
     label = "Safe" if score >= 75 else "Use Immediately" if score >= 50 else "Risky"
 
     return {"score": score, "label": label}
 
 
+# =========================
+# 🤖 REAL AI QUALITY CHECK
+# =========================
 @app.post("/quality-check")
 def quality_check(payload: QualityInput):
-    image_freshness = payload.imageFreshness or 70
-    image_len_hint = len(payload.imageData or "")
+    try:
+        if not payload.imageData:
+            raise ValueError("No image provided")
 
-    confidence = int(clamp(55 + image_freshness * 0.35 + min(image_len_hint / 4000, 10), 50, 97))
-    status = "Fresh" if image_freshness >= 55 else "Possibly spoiled"
+        # Extract base64
+        image_base64 = payload.imageData.split(",")[-1]
 
-    return {"status": status, "confidence": confidence}
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a food quality inspection AI. Always respond ONLY in JSON."
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": """
+Analyze this food image and return:
+{
+  "freshness_score": number (0-100),
+  "status": "Fresh" or "Possibly spoiled",
+  "confidence": number (0-100),
+  "reason": "short explanation"
+}
+"""
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=300
+        )
+
+        raw_output = response.choices[0].message.content
+
+        # Try parsing JSON safely
+        try:
+            parsed = json.loads(raw_output)
+        except:
+            # fallback parsing
+            parsed = {
+                "freshness_score": 65,
+                "status": "Unknown",
+                "confidence": 60,
+                "reason": raw_output[:100]
+            }
+
+        return {
+            "status": parsed.get("status", "Unknown"),
+            "confidence": int(parsed.get("confidence", 60)),
+            "freshness": int(parsed.get("freshness_score", 65)),
+            "reason": parsed.get("reason", "AI analysis")
+        }
+
+    except Exception as e:
+        return {
+            "status": "Unknown",
+            "confidence": 50,
+            "freshness": 60,
+            "reason": "Fallback used",
+            "error": str(e)
+        }

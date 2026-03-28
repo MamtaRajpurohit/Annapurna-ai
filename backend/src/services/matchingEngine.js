@@ -1,5 +1,8 @@
 const ngos = require("../data/ngos");
 
+// =========================
+// 📍 DISTANCE
+// =========================
 function haversineKm(a, b) {
   const toRad = (deg) => (deg * Math.PI) / 180;
   const R = 6371;
@@ -13,76 +16,125 @@ function haversineKm(a, b) {
   return R * (2 * Math.atan2(Math.sqrt(sa), Math.sqrt(1 - sa)));
 }
 
+// =========================
+// ⏱ ETA
+// =========================
 function etaMinutes(distanceKm, urgency) {
   const speed =
     urgency === "critical" ? 35 : urgency === "urgent" ? 28 : 22;
   return Math.max(8, Math.round((distanceKm / speed) * 60));
 }
 
-function matchNGOs({
-  donorLocation,
-  quantityKg = 0,
-  trustScore = 70,
-  urgency = "normal",
-  ngoTypePreference = "general",
-}) {
-  const origin = donorLocation || { lat: 28.6139, lng: 77.209 };
+// =========================
+// 🧠 SCORING ENGINE
+// =========================
+function scoreNGO(ngo, input) {
+  const { donorLocation, quantityKg, trustScore, urgency, ngoTypePreference } = input;
 
-  const mapped = ngos.map((ngo) => {
-    const distanceKm = Number(
-      haversineKm(origin, { lat: ngo.lat, lng: ngo.lng }).toFixed(2)
-    );
+  const distanceKm = Number(
+    haversineKm(donorLocation, { lat: ngo.lat, lng: ngo.lng }).toFixed(2)
+  );
 
-    const remainingCapacityKg = Math.max(
-      0,
-      ngo.capacityKg - ngo.allocatedKg
-    );
+  const remainingCapacityKg = Math.max(0, ngo.capacityKg - ngo.allocatedKg);
 
-    const capacityFit = Math.min(
-      1,
-      remainingCapacityKg / Math.max(1, quantityKg)
-    );
+  const capacityFit = Math.min(1, remainingCapacityKg / Math.max(1, quantityKg));
 
-    const typeMatch =
-      ngoTypePreference === "general" || ngo.type === ngoTypePreference
-        ? 1
-        : 0.75;
+  const typeMatch =
+    ngoTypePreference === "general" || ngo.type === ngoTypePreference
+      ? 1
+      : 0.75;
 
-    const trustPenalty = trustScore < 50 ? 0.65 : 1;
+  const trustPenalty = trustScore < 50 ? 0.65 : 1;
 
-    let fitScore =
-      (1 / (1 + distanceKm)) * 45 +
-      capacityFit * 35 +
-      typeMatch * 20;
+  let score =
+    (1 / (1 + distanceKm)) * 45 +
+    capacityFit * 35 +
+    typeMatch * 20;
 
-    fitScore *= trustPenalty;
+  score *= trustPenalty;
 
-    if (trustScore < 50) {
-      fitScore += Math.max(0, 18 - distanceKm);
-    }
+  // ⚡ Risk-aware routing
+  if (trustScore < 50) {
+    score += Math.max(0, 18 - distanceKm);
+  }
 
-    if (urgency === "critical") {
-      fitScore += Math.max(0, 12 - distanceKm);
-    }
+  if (urgency === "critical") {
+    score += Math.max(0, 12 - distanceKm);
+  }
 
-    return {
-      ngoId: ngo.ngoId,
-      ngoName: ngo.ngoName,
-      type: ngo.type,
-      distanceKm,
-      remainingCapacityKg,
-      etaMinutes: etaMinutes(distanceKm, urgency),
-      fitScore: Number(fitScore.toFixed(2)),
-      reason:
-        trustScore < 50
-          ? "⚡ High-risk food → sent to nearest NGO for immediate handling"
-          : `📍 ${distanceKm}km away • 🏢 Capacity fit • ⚖️ Best overall match`,
-    };
-  }); // ✅ THIS WAS MISSING
-
-  return mapped.sort((a, b) => b.fitScore - a.fitScore);
+  return {
+    ngoId: ngo.ngoId,
+    ngoName: ngo.ngoName,
+    type: ngo.type,
+    distanceKm,
+    remainingCapacityKg,
+    etaMinutes: etaMinutes(distanceKm, urgency),
+    fitScore: Number(score.toFixed(2))
+  };
 }
 
+// =========================
+// 🎯 MATCHING + SORTING
+// =========================
+function matchNGOs(input) {
+  const origin = input.donorLocation || { lat: 28.6139, lng: 77.209 };
+
+  const scored = ngos.map((ngo) =>
+    scoreNGO(ngo, { ...input, donorLocation: origin })
+  );
+
+  return scored.sort((a, b) => b.fitScore - a.fitScore);
+}
+
+// =========================
+// 🔀 AUTO SPLIT (REAL LOGIC)
+// =========================
+function allocateDonations(matches, totalQuantity) {
+  let remaining = totalQuantity;
+  const allocations = [];
+
+  for (let ngo of matches) {
+    if (remaining <= 0) break;
+
+    const allocated = Math.min(ngo.remainingCapacityKg, remaining);
+
+    if (allocated > 0) {
+      allocations.push({
+        ngoId: ngo.ngoId,
+        ngoName: ngo.ngoName,
+        allocatedKg: Number(allocated.toFixed(2)),
+        etaMinutes: ngo.etaMinutes,
+        distanceKm: ngo.distanceKm,
+      });
+
+      remaining -= allocated;
+    }
+  }
+
+  return {
+    allocations,
+    unallocatedKg: Number(remaining.toFixed(2))
+  };
+}
+
+// =========================
+// 🧠 EXPLAINABILITY (VERY IMPORTANT)
+// =========================
+function generateReason(input, match) {
+  if (input.trustScore < 50) {
+    return "⚡ High-risk food prioritized to nearest NGO for quick handling";
+  }
+
+  if (input.urgency === "critical") {
+    return "🚨 Critical urgency → fastest route selected";
+  }
+
+  return `📍 ${match.distanceKm}km away • 🏢 Capacity optimized • ⚖️ Best overall match`;
+}
+
+// =========================
+// 🗺 ROUTE
+// =========================
 function buildRoute(donorLocation, match) {
   const donor = donorLocation || { lat: 28.6139, lng: 77.209 };
 
@@ -99,4 +151,9 @@ function buildRoute(donorLocation, match) {
   };
 }
 
-module.exports = { matchNGOs, buildRoute };
+module.exports = {
+  matchNGOs,
+  buildRoute,
+  allocateDonations,
+  generateReason
+};

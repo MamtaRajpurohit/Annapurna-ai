@@ -5,6 +5,9 @@ import DonorDashboard from "./pages/DonorDashboard";
 import NGODashboard from "./pages/NGODashboard";
 import LiveMatching from "./pages/LiveMatching";
 import AnalyticsDashboard from "./pages/AnalyticsDashboard";
+import Chatbot from "./pages/Chatbot";
+import NGOLogin from "./pages/NGOLogin";
+import NGORegister from "./pages/NGORegister";
 
 export default function App() {
   return (
@@ -17,6 +20,9 @@ export default function App() {
           <Route path="/ngo" element={<NGODashboard />} />
           <Route path="/matching" element={<LiveMatching />} />
           <Route path="/analytics" element={<AnalyticsDashboard />} />
+          <Route path= "/chatbot" element={<Chatbot />} />
+          <Route path="/NGOLogin" element={<NGOLogin />} />
+          <Route path="/NGORegister" element={<NGORegister />} />
         </Routes>
       </main>
     </div>

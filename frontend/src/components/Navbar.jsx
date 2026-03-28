@@ -5,7 +5,10 @@ const links = [
   { to: "/donor", label: "Donate" },
   { to: "/ngo", label: "NGO Dashboard" },
   { to: "/matching", label: "Live Match" },
-  { to: "/analytics", label: "Analytics" }
+  { to: "/analytics", label: "Analytics" },
+  { to: "/chatbot", label: "Chatbot" },
+  { to: "/NGOLogin", label: "NGO Login" },
+  { to: "/NGORegister", label: "NGO Register" }
 ];
 
 export default function Navbar() {

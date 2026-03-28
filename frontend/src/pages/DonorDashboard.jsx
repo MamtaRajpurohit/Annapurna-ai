@@ -65,7 +65,7 @@ export default function DonorDashboard() {
         imageFreshness: Math.floor(60 + Math.random() * 30),
         preparedAt: new Date(
           Date.now() - form.preparedAtHoursAgo * 3600000
-        ),
+        ).toISOString(),
       };
 
       const res = await postDonation(payload);
@@ -79,9 +79,10 @@ export default function DonorDashboard() {
         setCountdown(time);
         if (time <= 0) clearInterval(interval);
       }, 1000);
-    } catch {
-      alert("AI failed");
-    } finally {
+    } catch (err) {
+  console.error("FULL ERROR:", err);
+  alert("AI failed");
+} finally {
       setLoading(false);
     }
   };
