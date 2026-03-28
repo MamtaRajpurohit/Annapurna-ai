@@ -16,16 +16,6 @@ export default function LandingPage() {
       {/* HERO */}
       <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 relative">
 
-        {/* Badge */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 px-5 py-2 rounded-full border border-pink-500/30 bg-pink-500/10 text-pink-300 text-xs uppercase tracking-widest flex items-center gap-2 backdrop-blur"
-        >
-          <span className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></span>
-          AI-Powered Food Redistribution
-        </motion.div>
-
         {/* Heading */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
@@ -44,8 +34,8 @@ export default function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-gray-300 max-w-xl mb-10 text-sm md:text-base"
         >
-          Annapurna AI uses trust scoring, predictive matching, and intelligent routing 
-          to deliver surplus food to the right NGO — within minutes.
+          Annapurna uses trust scoring, predictive matching, and intelligent routing 
+          to deliver surplus food to the right NGO within minutes.
         </motion.p>
 
         {/* CTA */}
@@ -58,19 +48,19 @@ export default function LandingPage() {
             onClick={() => navigate("/donor")}
             className="px-7 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:scale-105 transition shadow-[0_10px_40px_rgba(247,37,133,0.4)]"
           >
-            🍱 Donate Food Now
+            Donate Food Now
           </button>
 
           <button
             onClick={() => navigate("/analytics")}
             className="px-7 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition backdrop-blur"
           >
-            📊 See Impact
+            See Impact
           </button>
         </motion.div>
       </section>
 
-      {/* STATS (GLASS CARDS) */}
+      {/* STATS (GLASS CARDS)
       <div className="max-w-5xl mx-auto px-6 -mt-20 relative z-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
@@ -92,12 +82,12 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
-      </div>
+      </div> */}
 
       {/* FEATURES */}
-      <section className="max-w-6xl mx-auto px-6 py-28">
+      <section className="max-w-6xl mx-auto px-6 py-16 -mt-20 pt-2 pb-20 ">
         <h2 className="text-3xl md:text-5xl font-bold mb-16 text-center">
-          Five AI Engines, One Mission
+          Six AI Engines, One Mission
         </h2>
 
         <div className="grid md:grid-cols-3 gap-6">
@@ -131,13 +121,13 @@ export default function LandingPage() {
           Every Meal Matters.
         </h3>
         <p className="text-gray-400 mb-8">
-          Start redistributing surplus food intelligently today.
+          Start redistributing surplus food today.
         </p>
         <button
           onClick={() => navigate("/donor")}
           className="px-8 py-3 rounded-xl bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-400 hover:scale-105 transition shadow-lg"
         >
-          🚀 Get Started
+          Get Started
         </button>
       </section>
 

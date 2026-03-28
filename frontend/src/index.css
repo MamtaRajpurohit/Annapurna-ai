@@ -129,6 +129,14 @@ body > * {
   background: rgba(255,255,255,0.08);
 }
 
+select.input {
+  color: white;
+}
+
+select.input option {
+  color: black; /* dropdown options visible */
+}
+
 /* ───────── BADGES ───────── */
 .badge-green {
   background: rgba(6,214,160,0.15);

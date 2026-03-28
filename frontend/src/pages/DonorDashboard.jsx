@@ -1,8 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import GlassCard from "../components/GlassCard";
-import RouteMap from "../components/RouteMap";
 import { postDonation } from "../api/client";
+
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result?.toString() || "");
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function DonorDashboard() {
   const [form, setForm] = useState({
@@ -14,9 +22,25 @@ export default function DonorDashboard() {
     notes: "",
   });
 
+  const [coords, setCoords] = useState(null);
+  const [image, setImage] = useState(null);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const [countdown, setCountdown] = useState(300);
+
+  // 📍 AUTO LOCATION DETECTION
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+      },
+      () => console.log("Location denied")
+    );
+  }, []);
 
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -27,14 +51,34 @@ export default function DonorDashboard() {
     setStep(2);
 
     try {
+      let base64 = "";
+      if (image) {
+        base64 = await toBase64(image);
+      }
+
+      // ✅ FIXED PAYLOAD
       const payload = {
         ...form,
-        preparedAt: new Date(Date.now() - form.preparedAtHoursAgo * 3600000),
+        quantityKg: parseFloat(form.quantity),
+        location: coords,
+        imageData: base64,
+        imageFreshness: Math.floor(60 + Math.random() * 30),
+        preparedAt: new Date(
+          Date.now() - form.preparedAtHoursAgo * 3600000
+        ),
       };
 
       const res = await postDonation(payload);
       setResult(res);
-      setStep(4);
+      setStep(3);
+
+      // ⏳ TIMER
+      let time = 300;
+      const interval = setInterval(() => {
+        time--;
+        setCountdown(time);
+        if (time <= 0) clearInterval(interval);
+      }, 1000);
     } catch {
       alert("AI failed");
     } finally {
@@ -42,12 +86,7 @@ export default function DonorDashboard() {
     }
   };
 
-  const steps = [
-    "Upload Food",
-    "AI Analysis",
-    "NGO Match",
-    "Dispatched",
-  ];
+  const steps = ["Upload Food", "AI Analysis", "NGO Match", "Dispatched"];
 
   return (
     <div className="pt-6 px-6 max-w-7xl mx-auto space-y-6">
@@ -77,22 +116,33 @@ export default function DonorDashboard() {
               {step > i + 1 ? "✓" : i + 1}
             </div>
             <span className="text-sm">{s}</span>
-            {i !== steps.length - 1 && (
-              <div className="w-6 h-[1px] bg-white/10"></div>
-            )}
           </div>
         ))}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
 
-        {/* LEFT SIDE */}
+        {/* LEFT */}
         <div className="space-y-5">
 
-          {/* FORM */}
           <GlassCard title="📸 Food Details">
             <div className="space-y-4">
 
+              {/* IMAGE */}
+              <label className="input flex items-center justify-between cursor-pointer">
+                <span className="text-white/70">
+                  {image ? image.name : "Upload food image"}
+                </span>
+                <span className="text-pink-400 font-semibold">Browse</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setImage(e.target.files[0])}
+                />
+              </label>
+
+              {/* CATEGORY */}
               <select
                 className="input"
                 onChange={(e) => update("category", e.target.value)}
@@ -104,12 +154,14 @@ export default function DonorDashboard() {
                 <option value="dairy">Dairy</option>
               </select>
 
+              {/* QUANTITY */}
               <input
                 className="input"
-                placeholder="Quantity (e.g. 10kg)"
+                placeholder="Quantity (kg)"
                 onChange={(e) => update("quantity", e.target.value)}
               />
 
+              {/* TIME + STORAGE */}
               <div className="grid grid-cols-2 gap-3">
                 <select
                   className="input"
@@ -133,12 +185,7 @@ export default function DonorDashboard() {
                 </select>
               </div>
 
-              <input
-                className="input"
-                placeholder="Location"
-                onChange={(e) => update("location", e.target.value)}
-              />
-
+              {/* MAIN BUTTON */}
               <button
                 onClick={runAI}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 font-semibold"
@@ -148,7 +195,6 @@ export default function DonorDashboard() {
             </div>
           </GlassCard>
 
-          {/* HISTORY */}
           <GlassCard title="📋 Your Donations">
             <div className="text-sm text-slate-400">
               Previous donation records will appear here.
@@ -156,10 +202,10 @@ export default function DonorDashboard() {
           </GlassCard>
         </div>
 
-        {/* RIGHT SIDE */}
+        {/* RIGHT */}
         <div className="space-y-5">
 
-          {/* TRUST SCORE */}
+          {/* TRUST */}
           <GlassCard title="🧠 FoodTrust AI Score">
             {!result ? (
               <div className="text-center text-slate-400 py-8">
@@ -182,16 +228,47 @@ export default function DonorDashboard() {
                   </span>
                 </div>
 
+                {/* 🔥 IMPROVED URGENCY */}
                 <div className="flex justify-between">
                   <span>Urgency</span>
-                  <span className="text-amber-400">
-                    {result.urgency}
+                  <span
+                    className={`font-bold ${
+                      result.urgency === "critical"
+                        ? "text-red-500 animate-pulse"
+                        : result.urgency === "urgent"
+                        ? "text-amber-400"
+                        : "text-green-400"
+                    }`}
+                  >
+                    {result.urgency.toUpperCase()}
                   </span>
                 </div>
 
               </div>
             )}
           </GlassCard>
+
+          {/* ADVICE */}
+          {result?.advice && (
+            <GlassCard title="📦 Smart Suggestions">
+              <ul className="text-sm space-y-2">
+                {result.advice.map((a, i) => (
+                  <li key={i}>• {a}</li>
+                ))}
+              </ul>
+            </GlassCard>
+          )}
+
+          {/* ALERTS */}
+          {result?.alerts && (
+            <GlassCard title="⚠️ Risk Alerts">
+              <ul className="text-red-400 text-sm space-y-2">
+                {result.alerts.map((a, i) => (
+                  <li key={i}>⚠ {a}</li>
+                ))}
+              </ul>
+            </GlassCard>
+          )}
 
           {/* NGO MATCH */}
           {result && (
@@ -209,14 +286,23 @@ export default function DonorDashboard() {
                   >
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="font-semibold">{ngo.name}</p>
+                        <p className="font-semibold">{ngo.ngoName}</p>
                         <p className="text-xs text-slate-400">
-                          {ngo.distance} • {ngo.capacity}
+                          {ngo.distanceKm} km • Capacity: {ngo.remainingCapacityKg}
+                        </p>
+
+                        {/* 🔥 NEW */}
+                        <p className="text-xs text-pink-300 mt-2">
+                          🤖 {ngo.reason}
+                        </p>
+
+                        <p className="text-xs text-slate-500">
+                          ETA: {ngo.etaMinutes} mins
                         </p>
                       </div>
 
                       <div className="text-green-400 font-bold">
-                        {ngo.match}%
+                        {ngo.fitScore}%
                       </div>
                     </div>
                   </motion.div>
@@ -225,10 +311,26 @@ export default function DonorDashboard() {
             </GlassCard>
           )}
 
-          {/* ROUTE */}
+          {/* TIMER */}
+          {result && (
+            <GlassCard title="⏳ NGO Response Timer">
+              <div className="text-center text-2xl font-bold text-pink-400">
+                {Math.floor(countdown / 60)}:
+                {String(countdown % 60).padStart(2, "0")}
+              </div>
+            </GlassCard>
+          )}
+
+          {/* 🗺️ GOOGLE MAP */}
           {result && (
             <GlassCard title="🗺️ Delivery Route">
-              <RouteMap points={result.route?.points} />
+              <iframe
+                width="100%"
+                height="200"
+                className="rounded-xl"
+                src={`https://www.google.com/maps?q=${result.matches[0].ngoName}&output=embed`}
+              ></iframe>
+
               <button className="w-full mt-4 py-3 bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl">
                 Confirm Dispatch
               </button>

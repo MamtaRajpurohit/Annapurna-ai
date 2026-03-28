@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 const links = [
   { to: "/", label: "Home" },
   { to: "/donor", label: "Donate" },
-  { to: "/ngo", label: "NGO Hub" },
+  { to: "/ngo", label: "NGO Dashboard" },
   { to: "/matching", label: "Live Match" },
   { to: "/analytics", label: "Analytics" }
 ];
@@ -20,7 +20,7 @@ export default function Navbar() {
       <div className="font-extrabold text-[20px] tracking-tight 
         bg-gradient-to-r from-pink-400 via-purple-500 to-cyan-400 
         bg-clip-text text-transparent">
-        🍱 Annapurna AI
+        Annapurna 
       </div>
 
       {/* NAV LINKS */}
