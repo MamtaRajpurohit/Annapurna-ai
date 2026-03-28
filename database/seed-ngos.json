@@ -1,0 +1,38 @@
+[
+  {
+    "ngoId": "ngo-1",
+    "ngoName": "Seva Community Kitchen",
+    "type": "general",
+    "lat": 28.628,
+    "lng": 77.218,
+    "capacityKg": 250,
+    "allocatedKg": 60
+  },
+  {
+    "ngoId": "ngo-2",
+    "ngoName": "Rapid Relief Van",
+    "type": "emergency",
+    "lat": 28.601,
+    "lng": 77.19,
+    "capacityKg": 120,
+    "allocatedKg": 45
+  },
+  {
+    "ngoId": "ngo-3",
+    "ngoName": "Children First Meals",
+    "type": "children",
+    "lat": 28.593,
+    "lng": 77.23,
+    "capacityKg": 180,
+    "allocatedKg": 80
+  },
+  {
+    "ngoId": "ngo-4",
+    "ngoName": "Senior Care Food Circle",
+    "type": "elderly",
+    "lat": 28.64,
+    "lng": 77.205,
+    "capacityKg": 140,
+    "allocatedKg": 20
+  }
+]
